@@ -93,7 +93,7 @@ let fBullets;
 /**
  * @typedef {{
  * pos: Vector
- * firingCooldown:
+ * firingCooldown: number
  * }} Enemy
  */
 
