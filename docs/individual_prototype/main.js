@@ -18,7 +18,7 @@ options = {
 	viewSize: {x: G.WIDTH, y: G.HEIGHT},
 	isReplayEnabled: true,
 	seed: 12,
-	theme: "shape",
+	theme: "shapeDark",
 };
 
 /**
