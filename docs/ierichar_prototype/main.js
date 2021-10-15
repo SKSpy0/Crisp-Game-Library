@@ -1,10 +1,9 @@
 title = "SPORTS BALL";
 
 description = `
-down...
+[HOLD] to 
 
-
-seeeeeet...
+change direction
 `;
 
 characters = [
@@ -40,10 +39,9 @@ const G = {
 
   FIELD_SPEED: .5,
 
-  PLAYER_MAX_SPEED: .5,
+  PLAYER_MAX_SPEED: .6,
 
   ENEMY_MIN_BASE_SPEED: .5,
-  ENEMY_MAX_BASE_SPEED: 1.0,
 
   PLAYER_ROLL_RATE: 10
 }
@@ -51,7 +49,7 @@ const G = {
 options = {
   theme: "shape",
   viewSize: {x: G.WIDTH, y: G.HEIGHT},
-  seed: 2,
+  seed: 1,
   isPlayingBgm: true,
   isReplayEnabled: true
 };
@@ -83,6 +81,7 @@ let player;
  * @typedef {{
  * pos: Vector,
  * angle: number,
+ * isPassed: boolean
  * }} Enemy
  */
 /**
@@ -111,12 +110,13 @@ let referee;
 let waveCount;
 
 function update() {
+  // sidelines
   color("green")
   rect(0, 0, 10, 150);
   rect(142, 0, 10, 150);
   // init
   if (!ticks) {
-    field = times(20, () => {
+    field = times(22, () => {
       const posX = 11;
       const posY = rnd(0, G.HEIGHT);
       return {
@@ -126,7 +126,7 @@ function update() {
     });
 
     player = {
-      pos: vec(G.WIDTH * 0.5, G.HEIGHT * 0.5),
+      pos: vec(G.WIDTH * 0.5, G.HEIGHT * 0.75),
       playerSpeed: G.PLAYER_MAX_SPEED,
       switchDirection: false
     };
@@ -137,14 +137,14 @@ function update() {
   }
 
   if (enemies.length === 0) {
-    currentEnemySpeed = 
-      rnd(G.ENEMY_MIN_BASE_SPEED, G.ENEMY_MAX_BASE_SPEED);
+    currentEnemySpeed = G.ENEMY_MIN_BASE_SPEED + waveCount*0.025;
     for (let i = 0; i < 9; i++) {
       const posX = rnd(15, G.WIDTH - 15);
       const posY = -rnd(i * G.HEIGHT * 0.2);
       enemies.push({
         pos: vec(posX, posY),
         angle: 0,
+        isPassed: false
       });
     }
     waveCount++;
@@ -159,33 +159,57 @@ function update() {
     rect(f.pos, 140, 10);
   });
 
+  // Create player
   color("black");
   char("a", player.pos);
-
   player.pos.clamp(10, G.WIDTH - 10, 0, G.HEIGHT);
-  
   // Update player position
   if (input.isPressed) {
-    player.pos.x -= G.PLAYER_MAX_SPEED;
-    if (player.switchDirection) {
+    if (player.switchDirection == true) {
+      console.log("pressed & true")
       player.pos.x += G.PLAYER_MAX_SPEED;
-    }
-    // player.pos = vec(input.pos.x, input.pos.y);
-    // let destination = vec(input.pos.x, input.pos.y);
-    // player.angle = player.pos.angleTo(destination);
-    // while (player.pos.x != input.pos.x && player.pos.y != input.pos.y) {
-    //   play("coin")
-    // }
-  } else {
-    player.pos.x += G.PLAYER_MAX_SPEED;
-    if (player.switchDirection) {
+    } else {
+      console.log("pressed & false")
       player.pos.x -= G.PLAYER_MAX_SPEED;
+    }
+  } else {
+    if (player.switchDirection == true) {
+      console.log("not pressed & true")
+      player.pos.x -= G.PLAYER_MAX_SPEED;
+    } else {
+      console.log("not pressed & false")
+      player.pos.x += G.PLAYER_MAX_SPEED;
     }
   }
 
+  if (waveCount % 2 == 0 && !player.switchDirection) {
+    player.switchDirection = !player.switchDirection
+    let coachText = "GO RIGHT!"
+    text(coachText.toString(), 40, 50)
+  }
+  if (waveCount > 1 && waveCount % 2 == 1 && player.switchDirection) {
+    player.switchDirection = !player.switchDirection
+    let coachText = "GO LEFT!"
+    text(coachText.toString(), 40, 50)
+  }
+
   remove(enemies, (e) => {
+    // Update enemy position
+    if (player.pos.x >= e.pos.x) {
+      e.pos.x += currentEnemySpeed/3;
+    } else {
+      e.pos.x -= currentEnemySpeed/3;
+    }
     e.pos.y += currentEnemySpeed;
 
+    // If enemy is passed, gain points
+    if (player.pos.y < e.pos.y && !e.isPassed) {
+      play("coin");
+      e.isPassed = true;
+      addScore(10 * waveCount);
+    }
+
+    // Player -> Enemy Collision
     const isCollidingWithPlayer = char("b", e.pos).isColliding.char.a;
     if (isCollidingWithPlayer) {
       end();
@@ -201,4 +225,11 @@ function update() {
     play("jump");
   }
   char("c", 5, 75);
+
+  // upper UI
+  color("light_red")
+  rect(0, 0, 150, 7)
+  // lower UI
+  color("cyan")
+  rect(0, 143, 150, 7)
 }
