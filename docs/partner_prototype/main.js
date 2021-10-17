@@ -10,9 +10,9 @@ description = `[HOLD] to set angle
 characters = [
 `
  bbbb
-RRRRRR
-RRyRyR
-RRRRRR
+bbbbbb
+bbybyb
+bbbbbb
 bbbbbb
  bbbb
 `,
@@ -36,6 +36,8 @@ y  y
 y  y
 y  y
  yy
+
+
 `
 ];
 
@@ -45,7 +47,9 @@ const G = {
 
 	GRAVITY: 3,
 	THROW_RADIUS: 20,
-	BALL_SPEED: .75,
+	PLAYER_SPEED: 2,
+	BALL_SPEED: 1,
+	WALL_SPEED: 0.5,
 
 	BUILDING_SPEED_MIN: 0.2,
 	BUILDING_SPEED_MID: 0.5,
@@ -81,15 +85,21 @@ let player;
 /**
  * @typedef {{
  * pos: Vector,
+ * delay: number,
  * }} Ball
  */
 /**
  * @type { Ball [] }
  */
-let ball;
-let throwAngle;
-let ballActive;
-let airborne;
+let balls;
+
+/**
+ * @typedef {{
+ * pos: Vector,
+ * }} Wall
+ */
+
+let walls;
 
 /**
 * @typedef { object } Building - A decorative floating object in the background
@@ -125,6 +135,11 @@ let airborne;
   */
  let rings;
 
+
+let throwAngle;
+let ballActive;
+let airborne;
+
 function update() {
 	//INITIALIZATION
 	if (!ticks) {
@@ -156,7 +171,7 @@ function update() {
 		  });
 		//create player
 		player = {
-			pos: vec(G.WIDTH * 0.15, G.HEIGHT * .25),
+			pos: vec(G.WIDTH * 0.9, G.HEIGHT * 0.8),
 			throwing: false,
 			throwDelay: 18000
 		}
@@ -166,10 +181,13 @@ function update() {
 		enemies = [];	
 
 		//create ball
-		ball = [];
+		balls = [];
+
+		//create walls
+		walls = [];
 
 		//initialize throw angle
-		throwAngle = 0.25;
+		throwAngle = 0.1;
 		
 		//setup up throw logic
 		airborne = false;
@@ -229,26 +247,49 @@ function update() {
 	//create floor
 	color("black");
 	rect(0, G.HEIGHT*.825, G.WIDTH * 2, G.HEIGHT * 0.25);
+
+	//spawn new random sized walls
+	if(walls.length <= 3){
+		const posX = rnd(G.WIDTH, G.WIDTH * 1.5);
+		const posY = rnd(G.HEIGHT * 0.5, G.HEIGHT * 0.7);
+		walls.push({
+			pos: vec(posX, posY)
+		});
+	}
+
+	//handle walls
+	remove(walls, (w) => {
+		w.pos.x -= G.WALL_SPEED * difficulty;;
+		color("black");
+		rect(w.pos.x, w.pos.y, 30, 70);
+		return (w.pos.x < -30);
+	});
+
+	//console.log(player.pos.x)
 	//player properties
 	color("black");
-	char("a", player.pos);
-
-	player.pos.clamp(0, G.WIDTH, 0, G.HEIGHT * 0.75);
-	player.pos.y += G.GRAVITY;
-
-	if(player.pos.y < (G.HEIGHT * 0.75) - 4){
+	const playerIsCollidingWithFloor = char("a", player.pos).isColliding.rect.black;
+	if(!playerIsCollidingWithFloor){
 		airborne = true;
+		player.pos.y += G.GRAVITY;
 	} else {
 		airborne = false;
+	}
+	//player scrolling
+	player.pos.x -= G.WALL_SPEED * difficulty;
+
+	//end game if player gets to left side
+	if(player.pos.x <= -5){
+		end();
 	}
 
 	//while button pressed, throw line will show to show ball trajectory
 	if(input.isPressed && !ballActive && !airborne){
-		if(throwAngle >= -1.5){
-			throwAngle -= 0.025;
+		if(throwAngle >= -1.6){
+			throwAngle -= 0.03;
 		}
 		//create line
-		color("black");
+		color("cyan");
 		line(player.pos.x + 4, player.pos.y - 4, vec(player.pos.x + 4, player.pos.y - 4).addWithAngle(throwAngle, 20), 2);
 	}
 	if(input.isJustReleased && !ballActive && !airborne){
@@ -257,25 +298,29 @@ function update() {
 
 	//spawn new ball when throwing
 	if(player.throwing && !ballActive){
-		ball.push({
-			pos: vec(player.pos.x + 2, player.pos.y - 2)
+		balls.push({
+			pos: vec(player.pos.x + 4, player.pos.y - 4),
+			delay: ticks,
 		});
 		ballActive = true;
 	}
 
 	//handle balls
-	remove(ball, (b) => {
+	remove(balls, (b) => {
 		b.pos.x += G.BALL_SPEED * Math.cos(throwAngle);
 		b.pos.y += G.BALL_SPEED * Math.sin(throwAngle);
-		throwAngle += 0.01;
+		if(ticks >= b.delay + 10){
+			throwAngle += 0.02;
+		}
 
 		
-		color("blue");
+
+		color("black");
 		const isCollidingWithFloor = char("b", b.pos).isColliding.rect.black;
 
 		//teleport and destroy
 		if(input.isPressed && player.throwing){
-			console.log("teleport!");
+			addScore(b.pos.x - player.pos.x);
 			player.throwDelay = ticks;
 			player.pos = b.pos;
 			ballActive = false;
@@ -288,7 +333,9 @@ function update() {
 		if(b.pos.x > G.WIDTH || isCollidingWithFloor){
 			ballActive = false;
 			player.throwing = false;
+			throwAngle = 0.1;
 		}
+		
 		return(b.pos.x > G.WIDTH || isCollidingWithFloor);
 	});
 
