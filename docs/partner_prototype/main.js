@@ -10,17 +10,17 @@ description = `[HOLD] to set angle
 characters = [
 `
  bbbb
-bbbbbb
-bbybyb
-bbbbbb
+RRRRRR
+RRyRyR
+RRRRRR
 bbbbbb
  bbbb
 `,
 `
- BB
-BBBB
-BBBB
- BB
+ gg
+gggg
+gggg
+ gg
 `,
 `
  r  r
@@ -36,8 +36,6 @@ y  y
 y  y
 y  y
  yy
-
-
 `
 ];
 
@@ -86,6 +84,7 @@ let player;
  * @typedef {{
  * pos: Vector,
  * delay: number,
+ * rotation: number
  * }} Ball
  */
 /**
@@ -225,7 +224,7 @@ function update() {
 		a.pos.x -= a.speed;
 		a.pos.wrap(0, G.WIDTH - 10, 0, G.HEIGHT);
 
-		color("light_black");
+		color("light_yellow");
 		rect(a.pos, 10, 80);
 	});
 	buildingsMed.forEach((b) => {
@@ -280,6 +279,10 @@ function update() {
 
 	//end game if player gets to left side
 	if(player.pos.x <= -5){
+		ballActive = false;
+		player.throwing = false;
+		throwAngle = 0.1;
+		play("lucky");
 		end();
 	}
 
@@ -301,6 +304,7 @@ function update() {
 		balls.push({
 			pos: vec(player.pos.x + 4, player.pos.y - 4),
 			delay: ticks,
+			rotation: 0
 		});
 		ballActive = true;
 	}
@@ -309,14 +313,21 @@ function update() {
 	remove(balls, (b) => {
 		b.pos.x += G.BALL_SPEED * Math.cos(throwAngle);
 		b.pos.y += G.BALL_SPEED * Math.sin(throwAngle);
+		b.rotation += 0.25;
+		color("light_green")
+		particle(
+			b.pos.x,
+			b.pos.y, 
+			2,
+			1
+		);
 		if(ticks >= b.delay + 10){
 			throwAngle += 0.02;
 		}
 
-		
-
 		color("black");
 		const isCollidingWithFloor = char("b", b.pos).isColliding.rect.black;
+		const isColldingWithEnemy = char("b", b.pos).isColliding.char.c;
 
 		//teleport and destroy
 		if(input.isPressed && player.throwing){
@@ -330,13 +341,13 @@ function update() {
 		}
 
 		//destroy ball if you don't teleport
-		if(b.pos.x > G.WIDTH || isCollidingWithFloor){
+		if(b.pos.x > G.WIDTH || isCollidingWithFloor || isColldingWithEnemy){
 			ballActive = false;
 			player.throwing = false;
 			throwAngle = 0.1;
 		}
 		
-		return(b.pos.x > G.WIDTH || isCollidingWithFloor);
+		return(b.pos.x > G.WIDTH || isCollidingWithFloor || isColldingWithEnemy);
 	});
 
 	// ring removal for left ring (give illusion of
@@ -345,11 +356,12 @@ function update() {
 		l.pos.x -= l.speed;
 		color("black")
 		const isCollidingWithPlayer = char("d", l.pos).isColliding.char.a;
-		if (isCollidingWithPlayer) {
+		const isCollidingWithBall = char("d", l.pos).isColliding.char.b;
+		if (isCollidingWithPlayer || isCollidingWithBall) {
 			play("coin");
 			addScore(50, l.pos);
 		}
-		return (isCollidingWithPlayer || l.pos.x < 0);
+		return (isCollidingWithPlayer || isCollidingWithBall || l.pos.x < 0);
 	});
 
 	remove(enemies, (d) => {
