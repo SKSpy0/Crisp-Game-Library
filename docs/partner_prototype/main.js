@@ -1,7 +1,6 @@
 title = "Tele-orb-tation";
 
-description = `
-[HOLD] to set angle
+description = `[HOLD] to set angle
 
 [RELEASE] to launch
 
@@ -18,11 +17,25 @@ bbbbbb
  bbbb
 `,
 `
- ggg
-ggggg
-ggggg
-ggggg
- ggg
+ BB
+BBBB
+BBBB
+ BB
+`,
+`
+ r  r
+rrrrrr
+ryryrr
+rrrrrr
+ rrrr
+`,
+`
+ yy
+y  y
+y  y
+y  y
+y  y
+ yy
 `
 ];
 
@@ -37,6 +50,9 @@ const G = {
 	BUILDING_SPEED_MIN: 0.2,
 	BUILDING_SPEED_MID: 0.5,
 	BUILDING_SPEED_MAX: 0.75,
+
+	ENEMY_SPEED: 0.5,
+	RING_SPEED: 0.8
 };
 
 options = {
@@ -57,7 +73,6 @@ options = {
  * throwDelay: number,
  * }} Player
  */
-
 /**
  * @type { Player }
  */
@@ -68,7 +83,6 @@ let player;
  * pos: Vector,
  * }} Ball
  */
-
 /**
  * @type { Ball [] }
  */
@@ -91,13 +105,25 @@ let airborne;
 
  /**
  * @typedef {{
-  * pos: Vector
-  * }} Environment
+  * pos: Vector,
+  * speed: number
+  * }} Enemies
   */
  /**
-  * @type { Environment [] }
+  * @type { Enemies [] }
   */
- let environment;
+ let enemies;
+
+ /**
+  * @typedef {{
+  * pos: Vector,
+  * speed: number
+  * }} Bonus
+  */
+ /**
+  * @type { Bonus [] }
+  */
+ let rings;
 
 function update() {
 	//INITIALIZATION
@@ -134,8 +160,10 @@ function update() {
 			throwing: false,
 			throwDelay: 18000
 		}
-		// initialize environment array
-		environment = [];
+		// initialize ring array
+		rings = [];
+		// initialize enemy array
+		enemies = [];	
 
 		//create ball
 		ball = [];
@@ -148,14 +176,26 @@ function update() {
 	}
 
 	//UPDATE LOOP
-
-	if (environment.length === 0) {
+	if (enemies.length === 0) {
+		let currentEnemySpeed = G.ENEMY_SPEED;
 		for (let i = 0; i < 1; i++) {
-		  const posX = G.WIDTH;
-		  const posY = G.HEIGHT*0.25;
-		  environment.push({
-			pos: vec(posX, posY)
-		  });
+			const posX = G.WIDTH + 100;
+			const posY = rnd(G.HEIGHT*.5, G.HEIGHT*.75);
+			enemies.push({
+				pos: vec(posX, posY),
+				speed: currentEnemySpeed,
+			});
+		}
+	}
+	if (rings.length === 0) {
+		let currentRingSpeed = rnd(G.ENEMY_SPEED, G.RING_SPEED);
+		for (let i = 0; i < 1; i++) {
+			const posX = G.WIDTH + 50;
+			const posY = rnd(G.HEIGHT*.5, G.HEIGHT*.35);
+			rings.push({
+				pos:vec(posX, posY),
+				speed: currentRingSpeed,
+			})
 		}
 	}
 
@@ -164,20 +204,13 @@ function update() {
 	// control speed of background
 	// or any variable for that matter
 	buildingsFar.forEach((a) => {
-		// if (input.isPressed) {
-		//   a.pos.x -= a.speed;
-		// }
 		a.pos.x -= a.speed;
 		a.pos.wrap(0, G.WIDTH - 10, 0, G.HEIGHT);
 
 		color("light_black");
 		rect(a.pos, 10, 80);
 	});
-
 	buildingsMed.forEach((b) => {
-		// if (input.isPressed) {
-		//   b.pos.x -= b.speed;
-		// }    
 		b.pos.x -= b.speed;
 
 		b.pos.wrap(0, G.WIDTH - 10, 0, G.HEIGHT);
@@ -185,11 +218,7 @@ function update() {
 		color("light_purple");
 		rect(b.pos, 20, 80);
 	});
-
 	buildingsClose.forEach((c) => {
-		// if (input.isPressed) {
-		//   c.pos.x -= c.speed;
-		// }
 		c.pos.x -= c.speed;
 		c.pos.wrap(0, G.WIDTH, 0, G.HEIGHT);
 
@@ -203,7 +232,6 @@ function update() {
 	//player properties
 	color("black");
 	char("a", player.pos);
-	console.log(player.pos.y);
 
 	player.pos.clamp(0, G.WIDTH, 0, G.HEIGHT * 0.75);
 	player.pos.y += G.GRAVITY;
@@ -242,8 +270,8 @@ function update() {
 		throwAngle += 0.01;
 
 		
-		color("red");
-		const isCollidingWithFloor = box(b.pos, 3).isColliding.rect.black;
+		color("blue");
+		const isCollidingWithFloor = char("b", b.pos).isColliding.rect.black;
 
 		//teleport and destroy
 		if(input.isPressed && player.throwing){
@@ -264,10 +292,31 @@ function update() {
 		return(b.pos.x > G.WIDTH || isCollidingWithFloor);
 	});
 
-	remove(environment, (e) => {
-		e.pos.x += .1;
-		const isCollidingWithPlayer = rect(G.WIDTH + 30, G.HEIGHT*.25, 30, ).isColliding.char.a;
-		return (e.pos.x > 0);
+	// ring removal for left ring (give illusion of
+	// of going through ring)
+	remove(rings, (l) => {
+		l.pos.x -= l.speed;
+		color("black")
+		const isCollidingWithPlayer = char("d", l.pos).isColliding.char.a;
+		if (isCollidingWithPlayer) {
+			play("coin");
+			addScore(50, l.pos);
+		}
+		return (isCollidingWithPlayer || l.pos.x < 0);
+	});
+
+	remove(enemies, (d) => {
+		d.pos.x -= d.speed;
+		d.pos.y += rnd(-d.speed*3, d.speed*3);
+		color("black")
+		const isCollidingWithPlayer = char("c", d.pos).isColliding.char.a;
+		if (isCollidingWithPlayer) {
+			play("explosion");
+			color("red")
+			text("GAME OVER", G.WIDTH*.38, G.HEIGHT*.5)
+			end();
+		}
+		return (isCollidingWithPlayer || d.pos.x < 0);
 	});
 
 	// UI BORDERS
@@ -277,5 +326,5 @@ function update() {
 	rect(0, G.HEIGHT - 7, G.WIDTH, 7);
 	rect(G.WIDTH - 7, 0, 7, G.HEIGHT);
 	color("black")
-	text("TELE-ORB-TATION", vec(G.WIDTH*.2, 3));
+	text("TELE-ORB-TATION", vec(G.WIDTH*.27, 3));
 }
