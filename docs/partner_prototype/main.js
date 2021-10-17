@@ -302,7 +302,7 @@ function update() {
 	//spawn new ball when throwing
 	if(player.throwing && !ballActive){
 		balls.push({
-			pos: vec(player.pos.x + 4, player.pos.y - 4),
+			pos: vec(player.pos.x, player.pos.y - 4),
 			delay: ticks,
 			rotation: 0
 		});
